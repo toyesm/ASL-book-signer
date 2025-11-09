@@ -18,6 +18,67 @@
             padding: 20px;
         }
 
+        .app-wrapper {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .main-panel {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .resource-panel {
+            display: none;
+            width: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            height: calc(100vh - 40px);
+            position: sticky;
+            top: 20px;
+            flex-direction: column;
+        }
+
+        .resource-panel-header {
+            padding: 20px;
+            border-bottom: 2px solid #eee;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .resource-panel-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .resource-panel-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .resource-panel-content iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .resource-panel-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 1.1em;
+            text-align: center;
+            padding: 40px;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -215,9 +276,8 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 80vh;
+            height: 100vh;
             background: white;
-            border-radius: 20px 20px 0 0;
             box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.3);
             transform: translateY(100%);
             transition: transform 0.3s ease-in-out;
@@ -238,7 +298,6 @@
             align-items: center;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-radius: 20px 20px 0 0;
         }
 
         .bottom-sheet-header h2 {
@@ -296,7 +355,38 @@
             visibility: visible;
         }
 
+        /* Desktop layout - 2 panel */
+        @media (min-width: 1024px) {
+            .resource-panel {
+                display: flex;
+            }
+
+            .bottom-sheet {
+                display: none;
+            }
+
+            .bottom-sheet-overlay {
+                display: none;
+            }
+        }
+
+        /* Tablet and below */
+        @media (max-width: 1023px) {
+            .app-wrapper {
+                flex-direction: column;
+            }
+
+            .resource-panel {
+                display: none;
+            }
+        }
+
+        /* Mobile */
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
             .container {
                 padding: 20px;
             }
@@ -309,12 +399,18 @@
                 margin: 5px;
                 padding: 8px 20px;
             }
+
+            .sign-card {
+                min-width: 120px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📖 ASL Book Signer</h1>
+    <div class="app-wrapper">
+        <div class="main-panel">
+            <div class="container">
+                <h1>📖 ASL Book Signer</h1>
         <p class="subtitle">Type words to see their ASL signs - Perfect for signing books!</p>
 
         <div class="instructions">
@@ -359,9 +455,24 @@
                 </div>
             </div>
         </div>
+            </div>
+        </div>
+
+        <!-- Desktop Resource Panel -->
+        <div class="resource-panel" id="resourcePanel">
+            <div class="resource-panel-header">
+                <h2 id="resourcePanelTitle">ASL Resource</h2>
+            </div>
+            <div class="resource-panel-content">
+                <div class="resource-panel-empty" id="resourcePanelEmpty">
+                    Click on a word to view ASL signs here
+                </div>
+                <iframe id="resourcePanelFrame" src="" title="ASL Resource" style="display: none;"></iframe>
+            </div>
+        </div>
     </div>
 
-    <!-- Bottom Sheet Modal -->
+    <!-- Mobile/Tablet Bottom Sheet Modal -->
     <div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
     <div class="bottom-sheet" id="bottomSheet">
         <div class="bottom-sheet-header">
@@ -380,14 +491,27 @@
         const wordSignBtn = document.getElementById('wordSignBtn');
         const resourceSelect = document.getElementById('resourceSelect');
         const resourceInfo = document.getElementById('resourceInfo');
+
+        // Mobile/Tablet bottom sheet elements
         const bottomSheet = document.getElementById('bottomSheet');
         const bottomSheetOverlay = document.getElementById('bottomSheetOverlay');
         const bottomSheetFrame = document.getElementById('bottomSheetFrame');
         const bottomSheetTitle = document.getElementById('bottomSheetTitle');
         const closeBottomSheet = document.getElementById('closeBottomSheet');
 
+        // Desktop panel elements
+        const resourcePanel = document.getElementById('resourcePanel');
+        const resourcePanelFrame = document.getElementById('resourcePanelFrame');
+        const resourcePanelTitle = document.getElementById('resourcePanelTitle');
+        const resourcePanelEmpty = document.getElementById('resourcePanelEmpty');
+
         let currentMode = 'wordsign';
         let currentResource = 'signasl';
+
+        // Check if desktop view
+        function isDesktop() {
+            return window.innerWidth >= 1024;
+        }
 
         // Resource configurations
         const resources = {
@@ -453,9 +577,12 @@
                     fallback: (letter) => `https://www.signasl.org/sign/media/jpg/${letter}.jpg`
                 },
                 word: {
-                    searchUrl: (word) => `https://www.youtube.com/results?search_query=ASL+sign+${encodeURIComponent(word)}`,
+                    // Use YouTube embed with search - works in iframe
+                    searchUrl: (word) => `https://www.youtube.com/embed?listType=search&list=ASL+sign+${encodeURIComponent(word)}`,
+                    // Fallback search URL for new tab if embed doesn't work
+                    fallbackUrl: (word) => `https://www.youtube.com/results?search_query=ASL+sign+${encodeURIComponent(word)}`,
                     displayText: 'Search on YouTube',
-                    openInNewTab: true  // YouTube doesn't allow iframe embedding
+                    useEmbed: true
                 }
             }
         };
@@ -487,12 +614,21 @@
             resourceInfo.textContent = `Using ${resource.name} for ${currentMode === 'fingerspell' ? 'fingerspelling' : 'word signs'}`;
         }
 
-        // Bottom sheet modal functions
-        function openBottomSheet(url, title) {
-            bottomSheetTitle.textContent = title;
-            bottomSheetFrame.src = url;
-            bottomSheet.classList.add('active');
-            bottomSheetOverlay.classList.add('active');
+        // Resource viewing functions - handles both desktop panel and mobile modal
+        function openResource(url, title) {
+            if (isDesktop()) {
+                // Desktop: Update right panel
+                resourcePanelTitle.textContent = title;
+                resourcePanelFrame.src = url;
+                resourcePanelFrame.style.display = 'block';
+                resourcePanelEmpty.style.display = 'none';
+            } else {
+                // Mobile/Tablet: Open bottom sheet
+                bottomSheetTitle.textContent = title;
+                bottomSheetFrame.src = url;
+                bottomSheet.classList.add('active');
+                bottomSheetOverlay.classList.add('active');
+            }
         }
 
         function closeBottomSheetModal() {
@@ -596,19 +732,12 @@
                 label.className = 'label';
                 label.innerHTML = `<a href="#" style="color: #667eea; text-decoration: none; font-weight: 600;">${resource.word.displayText} →</a>`;
 
-                // Add click handler - open in new tab for YouTube, bottom sheet for others
+                // Add click handler - uses responsive resource viewer
                 label.addEventListener('click', (e) => {
                     e.preventDefault();
                     const url = resource.word.searchUrl(content);
-
-                    if (resource.word.openInNewTab) {
-                        // Open in new tab for resources that don't allow iframe embedding (like YouTube)
-                        window.open(url, '_blank');
-                    } else {
-                        // Open in bottom sheet modal
-                        const title = `ASL Sign: ${content.toUpperCase()}`;
-                        openBottomSheet(url, title);
-                    }
+                    const title = `ASL Sign: ${content.toUpperCase()}`;
+                    openResource(url, title);
                 });
 
                 card.appendChild(wordDiv);
