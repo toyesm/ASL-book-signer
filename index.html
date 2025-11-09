@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASL Book Signer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.2em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .mode-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .mode-selector button {
+            padding: 10px 30px;
+            margin: 0 10px;
+            font-size: 1em;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-selector button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .mode-selector button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .output-section {
+            min-height: 300px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+
+        .signs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .sign-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .sign-card .letter {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .sign-card img {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+
+        .sign-card .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .word-separator {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            margin: 20px 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #999;
+            font-size: 1.2em;
+            padding: 50px;
+        }
+
+        .instructions {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .instructions h3 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+            color: #555;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .mode-selector button {
+                margin: 5px;
+                padding: 8px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📖 ASL Book Signer</h1>
+        <p class="subtitle">Type words to see their ASL signs - Perfect for signing books!</p>
+
+        <div class="instructions">
+            <h3>How to use:</h3>
+            <ul>
+                <li><strong>Fingerspelling mode:</strong> Shows individual letter signs for spelling words</li>
+                <li><strong>Word signs mode:</strong> Shows common ASL word signs (when available)</li>
+                <li>Type any word or sentence and see the ASL signs appear below</li>
+                <li>Great for learning how to sign book content to your loved ones!</li>
+            </ul>
+        </div>
+
+        <div class="mode-selector">
+            <button id="fingerspellBtn" class="active">Fingerspelling</button>
+            <button id="wordSignBtn">Word Signs</button>
+        </div>
+
+        <div class="input-section">
+            <label for="textInput">Enter text to sign:</label>
+            <input type="text" id="textInput" placeholder="Type a word or sentence..." autocomplete="off">
+        </div>
+
+        <div class="output-section">
+            <div id="signsContainer" class="signs-container">
+                <div class="empty-state">
+                    Start typing to see ASL signs appear here!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const signsContainer = document.getElementById('signsContainer');
+        const fingerspellBtn = document.getElementById('fingerspellBtn');
+        const wordSignBtn = document.getElementById('wordSignBtn');
+
+        let currentMode = 'fingerspell';
+
+        // Mode selection
+        fingerspellBtn.addEventListener('click', () => {
+            currentMode = 'fingerspell';
+            fingerspellBtn.classList.add('active');
+            wordSignBtn.classList.remove('active');
+            updateDisplay();
+        });
+
+        wordSignBtn.addEventListener('click', () => {
+            currentMode = 'wordsign';
+            fingerspellBtn.classList.remove('active');
+            wordSignBtn.classList.add('active');
+            updateDisplay();
+        });
+
+        // Listen for input changes
+        textInput.addEventListener('input', updateDisplay);
+
+        function updateDisplay() {
+            const text = textInput.value.trim();
+
+            if (!text) {
+                signsContainer.innerHTML = '<div class="empty-state">Start typing to see ASL signs appear here!</div>';
+                return;
+            }
+
+            if (currentMode === 'fingerspell') {
+                displayFingerspelling(text);
+            } else {
+                displayWordSigns(text);
+            }
+        }
+
+        function displayFingerspelling(text) {
+            signsContainer.innerHTML = '';
+            const words = text.split(/\s+/);
+
+            words.forEach((word, wordIndex) => {
+                const letters = word.toLowerCase().split('');
+
+                letters.forEach(letter => {
+                    if (letter.match(/[a-z]/)) {
+                        const card = createSignCard(letter, 'letter');
+                        signsContainer.appendChild(card);
+                    }
+                });
+
+                // Add word separator if not the last word
+                if (wordIndex < words.length - 1) {
+                    const separator = document.createElement('div');
+                    separator.className = 'word-separator';
+                    signsContainer.appendChild(separator);
+                }
+            });
+        }
+
+        function displayWordSigns(text) {
+            signsContainer.innerHTML = '';
+            const words = text.split(/\s+/);
+
+            words.forEach(word => {
+                const cleanWord = word.toLowerCase().replace(/[^a-z]/g, '');
+                if (cleanWord) {
+                    const card = createSignCard(cleanWord, 'word');
+                    signsContainer.appendChild(card);
+                }
+            });
+        }
+
+        function createSignCard(content, type) {
+            const card = document.createElement('div');
+            card.className = 'sign-card';
+
+            if (type === 'letter') {
+                const img = document.createElement('img');
+                // Using SignASL fingerspelling images
+                img.src = `https://www.signasl.org/sign/media/jpg/${content}.jpg`;
+                img.alt = `ASL sign for letter ${content.toUpperCase()}`;
+                img.onerror = function() {
+                    // Fallback to alternative source
+                    this.src = `https://www.lifeprint.com/asl101/fingerspelling/${content}.gif`;
+                    this.onerror = function() {
+                        // If both fail, show letter
+                        this.style.display = 'none';
+                        card.querySelector('.letter').style.fontSize = '4em';
+                    };
+                };
+
+                const letterDiv = document.createElement('div');
+                letterDiv.className = 'letter';
+                letterDiv.textContent = content.toUpperCase();
+
+                card.appendChild(letterDiv);
+                card.appendChild(img);
+            } else if (type === 'word') {
+                const wordDiv = document.createElement('div');
+                wordDiv.className = 'letter';
+                wordDiv.textContent = content.toUpperCase();
+
+                const img = document.createElement('img');
+                // Using Signing Savvy or similar resources for word signs
+                img.src = `https://www.signingsavvy.com/signs/${content}`;
+                img.alt = `ASL sign for ${content}`;
+
+                // For word signs, we'll use a different approach since direct images aren't available
+                // We'll show the word and add a link to the sign
+                img.style.display = 'none';
+
+                const label = document.createElement('div');
+                label.className = 'label';
+                label.innerHTML = `<a href="https://www.signingsavvy.com/search/${content}" target="_blank" style="color: #667eea; text-decoration: none;">View sign →</a>`;
+
+                card.appendChild(wordDiv);
+                card.appendChild(label);
+            }
+
+            return card;
+        }
+
+        // Auto-focus input on load
+        textInput.focus();
+    </script>
+</body>
+</html>
