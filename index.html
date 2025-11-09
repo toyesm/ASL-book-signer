@@ -753,6 +753,13 @@
                     .replace(/\s+/g, ' ')
                     // Remove common OCR artifacts
                     .replace(/[|\\\/]/g, ' ')
+                    // Remove page numbers (e.g., "22d)", "p. 15", "Page 23", "15)")
+                    .replace(/\b(?:p\.|page)\s*\d+[a-z]?\)?/gi, '')
+                    .replace(/\b\d+[a-z]?\)/g, '')
+                    // Remove book headers/labels (e.g., "CHAPTER 1:", "SEER:", "Title:")
+                    .replace(/\b[A-Z][A-Z\s]+:/g, '')
+                    // Remove common book metadata patterns
+                    .replace(/\b(?:Chapter|Section|Part)\s+\d+/gi, '')
                     // Remove standalone single characters that aren't words (except 'a', 'I')
                     .replace(/\b(?![aAiI])[a-zA-Z]\b/g, '')
                     // Fix common OCR mistakes
@@ -761,6 +768,24 @@
                     // Clean up extra spaces again
                     .replace(/\s+/g, ' ')
                     .trim();
+
+                // Split into sentences and filter out non-narrative text
+                let sentences = cleanedText.split(/([.!?]+\s+)/).filter(s => s.trim().length > 0);
+
+                // Rejoin sentences, keeping only those that look like narrative text
+                let narrativeText = [];
+                for (let i = 0; i < sentences.length; i++) {
+                    const sentence = sentences[i].trim();
+                    // Skip if it's just punctuation or very short
+                    if (sentence.length < 3 || /^[.!?,\s]+$/.test(sentence)) continue;
+
+                    // Check if sentence has proper narrative structure (starts with capital, has words)
+                    if (/^[A-Z]/.test(sentence) && /[a-z]/.test(sentence)) {
+                        narrativeText.push(sentence);
+                    }
+                }
+
+                cleanedText = narrativeText.join(' ').trim();
 
                 // Filter out results that are mostly garbage (less than 50% valid words)
                 const words = cleanedText.split(' ').filter(w => w.length > 0);
