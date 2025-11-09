@@ -507,6 +507,9 @@
                 <button id="uploadPhotoBtn" class="photo-upload-btn">📁 Upload Photo</button>
                 <button id="takePictureBtn" class="photo-upload-btn">📷 Take Picture</button>
             </div>
+            <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
+                💡 Tips: Use good lighting, hold steady, ensure text is in focus
+            </div>
             <input type="file" id="imageFileInput" accept="image/*" capture="environment">
             <div id="ocrStatus" class="ocr-status"></div>
         </div>
@@ -704,14 +707,44 @@
                                 const progress = Math.round(info.progress * 100);
                                 showOCRStatus(`📖 Reading text... ${progress}%`, 'processing');
                             }
-                        }
+                        },
+                        // Optimized settings for book text
+                        tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?\'-',
                     }
                 );
 
-                // Clean up the text - remove extra whitespace and newlines
-                const cleanedText = text.trim().replace(/\s+/g, ' ');
+                // Advanced text cleanup
+                let cleanedText = text
+                    // Replace multiple spaces/tabs/newlines with single space
+                    .replace(/\s+/g, ' ')
+                    // Remove common OCR artifacts
+                    .replace(/[|\\\/]/g, ' ')
+                    // Remove standalone single characters that aren't words (except 'a', 'I')
+                    .replace(/\b(?![aAiI])[a-zA-Z]\b/g, '')
+                    // Fix common OCR mistakes
+                    .replace(/\bl\b/g, 'I')  // lowercase l often mistaken for I
+                    .replace(/\b0\b/g, 'O')  // zero often mistaken for O
+                    // Clean up extra spaces again
+                    .replace(/\s+/g, ' ')
+                    .trim();
 
-                if (cleanedText) {
+                // Filter out results that are mostly garbage (less than 50% valid words)
+                const words = cleanedText.split(' ').filter(w => w.length > 0);
+                const validWords = words.filter(word =>
+                    // A valid word has at least 2 chars or is a common single letter word
+                    word.length >= 2 || ['a', 'I', 'A'].includes(word)
+                );
+
+                // If less than 50% of words are valid, it's probably garbage
+                if (validWords.length < words.length * 0.5) {
+                    showOCRStatus('⚠️ Text quality too low. Try a clearer, well-lit photo.', 'error');
+                    return;
+                }
+
+                cleanedText = validWords.join(' ');
+
+                if (cleanedText && cleanedText.length > 0) {
                     textInput.value = cleanedText;
                     updateDisplay();
                     showOCRStatus(`✅ Found text: "${cleanedText.substring(0, 50)}${cleanedText.length > 50 ? '...' : ''}"`, 'success');
@@ -719,7 +752,7 @@
                     // Hide success message after 3 seconds
                     setTimeout(() => hideOCRStatus(), 3000);
                 } else {
-                    showOCRStatus('⚠️ No text found in image. Try a clearer photo.', 'error');
+                    showOCRStatus('⚠️ No readable text found. Ensure good lighting and focus.', 'error');
                 }
             } catch (error) {
                 console.error('OCR Error:', error);
