@@ -128,6 +128,68 @@
             border-color: #667eea;
         }
 
+        .photo-upload-section {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .photo-upload-btn {
+            padding: 12px 25px;
+            font-size: 1em;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 5px;
+        }
+
+        .photo-upload-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .photo-upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #imageFileInput {
+            display: none;
+        }
+
+        .ocr-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            display: none;
+        }
+
+        .ocr-status.processing {
+            display: block;
+            background: #e3f2fd;
+            color: #1976D2;
+            border-left: 4px solid #2196F3;
+        }
+
+        .ocr-status.success {
+            display: block;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .ocr-status.error {
+            display: block;
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+
         .mode-selector {
             margin-bottom: 20px;
             text-align: center;
@@ -439,6 +501,16 @@
             </div>
         </div>
 
+        <div class="photo-upload-section">
+            <label>📸 Or scan text from a book page:</label>
+            <div style="margin-top: 10px;">
+                <button id="uploadPhotoBtn" class="photo-upload-btn">📁 Upload Photo</button>
+                <button id="takePictureBtn" class="photo-upload-btn">📷 Take Picture</button>
+            </div>
+            <input type="file" id="imageFileInput" accept="image/*" capture="environment">
+            <div id="ocrStatus" class="ocr-status"></div>
+        </div>
+
         <div class="input-section">
             <label for="textInput">Enter text to sign:</label>
             <input type="text" id="textInput" placeholder="Type a word or sentence..." autocomplete="off">
@@ -480,6 +552,9 @@
         </div>
     </div>
 
+    <!-- Tesseract.js OCR Library -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+
     <script>
         const textInput = document.getElementById('textInput');
         const signsContainer = document.getElementById('signsContainer');
@@ -501,8 +576,15 @@
         const resourcePanelTitle = document.getElementById('resourcePanelTitle');
         const resourcePanelEmpty = document.getElementById('resourcePanelEmpty');
 
+        // OCR elements
+        const uploadPhotoBtn = document.getElementById('uploadPhotoBtn');
+        const takePictureBtn = document.getElementById('takePictureBtn');
+        const imageFileInput = document.getElementById('imageFileInput');
+        const ocrStatus = document.getElementById('ocrStatus');
+
         let currentMode = 'wordsign';
         let currentResource = 'signasl';
+        let isProcessingOCR = false;
 
         // Check if desktop view
         function isDesktop() {
@@ -592,6 +674,84 @@
         // Event listeners for closing modal
         closeBottomSheet.addEventListener('click', closeBottomSheetModal);
         bottomSheetOverlay.addEventListener('click', closeBottomSheetModal);
+
+        // OCR Functions
+        function showOCRStatus(message, type) {
+            ocrStatus.className = 'ocr-status ' + type;
+            ocrStatus.textContent = message;
+        }
+
+        function hideOCRStatus() {
+            ocrStatus.className = 'ocr-status';
+        }
+
+        async function processImage(file) {
+            if (isProcessingOCR) return;
+
+            isProcessingOCR = true;
+            uploadPhotoBtn.disabled = true;
+            takePictureBtn.disabled = true;
+
+            showOCRStatus('📖 Reading text from image...', 'processing');
+
+            try {
+                const { data: { text } } = await Tesseract.recognize(
+                    file,
+                    'eng',
+                    {
+                        logger: info => {
+                            if (info.status === 'recognizing text') {
+                                const progress = Math.round(info.progress * 100);
+                                showOCRStatus(`📖 Reading text... ${progress}%`, 'processing');
+                            }
+                        }
+                    }
+                );
+
+                // Clean up the text - remove extra whitespace and newlines
+                const cleanedText = text.trim().replace(/\s+/g, ' ');
+
+                if (cleanedText) {
+                    textInput.value = cleanedText;
+                    updateDisplay();
+                    showOCRStatus(`✅ Found text: "${cleanedText.substring(0, 50)}${cleanedText.length > 50 ? '...' : ''}"`, 'success');
+
+                    // Hide success message after 3 seconds
+                    setTimeout(() => hideOCRStatus(), 3000);
+                } else {
+                    showOCRStatus('⚠️ No text found in image. Try a clearer photo.', 'error');
+                }
+            } catch (error) {
+                console.error('OCR Error:', error);
+                showOCRStatus('❌ Error reading image. Please try again.', 'error');
+            } finally {
+                isProcessingOCR = false;
+                uploadPhotoBtn.disabled = false;
+                takePictureBtn.disabled = false;
+            }
+        }
+
+        // Upload photo button
+        uploadPhotoBtn.addEventListener('click', () => {
+            imageFileInput.removeAttribute('capture');
+            imageFileInput.click();
+        });
+
+        // Take picture button (mobile camera)
+        takePictureBtn.addEventListener('click', () => {
+            imageFileInput.setAttribute('capture', 'environment');
+            imageFileInput.click();
+        });
+
+        // Handle file selection
+        imageFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                processImage(file);
+            }
+            // Reset input so same file can be selected again
+            e.target.value = '';
+        });
 
         // Listen for input changes
         textInput.addEventListener('input', updateDisplay);
