@@ -454,7 +454,8 @@
                 },
                 word: {
                     searchUrl: (word) => `https://www.youtube.com/results?search_query=ASL+sign+${encodeURIComponent(word)}`,
-                    displayText: 'Search on YouTube'
+                    displayText: 'Search on YouTube',
+                    openInNewTab: true  // YouTube doesn't allow iframe embedding
                 }
             }
         };
@@ -595,12 +596,19 @@
                 label.className = 'label';
                 label.innerHTML = `<a href="#" style="color: #667eea; text-decoration: none; font-weight: 600;">${resource.word.displayText} →</a>`;
 
-                // Add click handler to open bottom sheet
+                // Add click handler - open in new tab for YouTube, bottom sheet for others
                 label.addEventListener('click', (e) => {
                     e.preventDefault();
                     const url = resource.word.searchUrl(content);
-                    const title = `ASL Sign: ${content.toUpperCase()}`;
-                    openBottomSheet(url, title);
+
+                    if (resource.word.openInNewTab) {
+                        // Open in new tab for resources that don't allow iframe embedding (like YouTube)
+                        window.open(url, '_blank');
+                    } else {
+                        // Open in bottom sheet modal
+                        const title = `ASL Sign: ${content.toUpperCase()}`;
+                        openBottomSheet(url, title);
+                    }
                 });
 
                 card.appendChild(wordDiv);
