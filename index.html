@@ -254,6 +254,7 @@
                 <option value="handspeak">Handspeak - ASL Dictionary</option>
                 <option value="aslpro">ASL Pro - Video signs</option>
                 <option value="signasl">SignASL - Images</option>
+                <option value="youtube">YouTube - Video search results</option>
             </select>
             <div class="resource-info" id="resourceInfo">
                 Using Lifeprint for fingerspelling and word signs
@@ -340,6 +341,17 @@
                 word: {
                     searchUrl: (word) => `https://www.signasl.org/sign/${word}`,
                     displayText: 'View sign'
+                }
+            },
+            youtube: {
+                name: 'YouTube',
+                fingerspelling: {
+                    url: (letter) => `https://www.lifeprint.com/asl101/fingerspelling/${letter}.gif`,
+                    fallback: (letter) => `https://www.signasl.org/sign/media/jpg/${letter}.jpg`
+                },
+                word: {
+                    searchUrl: (word) => `https://www.youtube.com/results?search_query=ASL+sign+${encodeURIComponent(word)}`,
+                    displayText: 'Search on YouTube'
                 }
             }
         };
