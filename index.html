@@ -276,7 +276,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 100vh;
+            height: 90vh;
             background: white;
             box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.3);
             transform: translateY(100%);
@@ -431,10 +431,6 @@
         <div class="resource-selector">
             <label for="resourceSelect">Choose ASL Resource Provider:</label>
             <select id="resourceSelect">
-                <option value="lifeprint">Lifeprint (Dr. Bill Vicars) - Images & GIFs</option>
-                <option value="signingsavvy">Signing Savvy - Video demonstrations</option>
-                <option value="handspeak">Handspeak - ASL Dictionary</option>
-                <option value="aslpro">ASL Pro - Video signs</option>
                 <option value="signasl" selected>SignASL - Images</option>
                 <option value="youtube">YouTube - Video search results</option>
             </select>
@@ -515,50 +511,6 @@
 
         // Resource configurations
         const resources = {
-            lifeprint: {
-                name: 'Lifeprint (Dr. Bill Vicars)',
-                fingerspelling: {
-                    url: (letter) => `https://www.lifeprint.com/asl101/fingerspelling/${letter}.gif`,
-                    fallback: (letter) => `https://www.signasl.org/sign/media/jpg/${letter}.jpg`
-                },
-                word: {
-                    searchUrl: (word) => `https://www.lifeprint.com/asl101/pages-signs/${word.charAt(0)}/${word}.htm`,
-                    displayText: 'View on Lifeprint'
-                }
-            },
-            signingsavvy: {
-                name: 'Signing Savvy',
-                fingerspelling: {
-                    url: (letter) => `https://www.signingsavvy.com/signs/alphabet/${letter}`,
-                    fallback: (letter) => `https://www.lifeprint.com/asl101/fingerspelling/${letter}.gif`
-                },
-                word: {
-                    searchUrl: (word) => `https://www.signingsavvy.com/search/${word}`,
-                    displayText: 'Watch video'
-                }
-            },
-            handspeak: {
-                name: 'Handspeak',
-                fingerspelling: {
-                    url: (letter) => `https://www.handspeak.com/word/abc/${letter}.jpg`,
-                    fallback: (letter) => `https://www.lifeprint.com/asl101/fingerspelling/${letter}.gif`
-                },
-                word: {
-                    searchUrl: (word) => `https://www.handspeak.com/word/search/index.php?id=${word}`,
-                    displayText: 'Look up sign'
-                }
-            },
-            aslpro: {
-                name: 'ASL Pro',
-                fingerspelling: {
-                    url: (letter) => `https://www.aslpro.com/cgi-bin/aslpro/aslpro.cgi?${letter}`,
-                    fallback: (letter) => `https://www.lifeprint.com/asl101/fingerspelling/${letter}.gif`
-                },
-                word: {
-                    searchUrl: (word) => `https://www.aslpro.com/cgi-bin/aslpro/aslpro.cgi?${word}`,
-                    displayText: 'View video'
-                }
-            },
             signasl: {
                 name: 'SignASL',
                 fingerspelling: {
@@ -573,16 +525,13 @@
             youtube: {
                 name: 'YouTube',
                 fingerspelling: {
-                    url: (letter) => `https://www.lifeprint.com/asl101/fingerspelling/${letter}.gif`,
-                    fallback: (letter) => `https://www.signasl.org/sign/media/jpg/${letter}.jpg`
+                    url: (letter) => `https://www.signasl.org/sign/media/jpg/${letter}.jpg`,
+                    fallback: (letter) => `https://www.lifeprint.com/asl101/fingerspelling/${letter}.gif`
                 },
                 word: {
-                    // Use YouTube embed with search - works in iframe
-                    searchUrl: (word) => `https://www.youtube.com/embed?listType=search&list=ASL+sign+${encodeURIComponent(word)}`,
-                    // Fallback search URL for new tab if embed doesn't work
-                    fallbackUrl: (word) => `https://www.youtube.com/results?search_query=ASL+sign+${encodeURIComponent(word)}`,
+                    searchUrl: (word) => `https://www.youtube.com/results?search_query=ASL+sign+${encodeURIComponent(word)}`,
                     displayText: 'Search on YouTube',
-                    useEmbed: true
+                    openInNewTab: true
                 }
             }
         };
@@ -732,12 +681,18 @@
                 label.className = 'label';
                 label.innerHTML = `<a href="#" style="color: #667eea; text-decoration: none; font-weight: 600;">${resource.word.displayText} →</a>`;
 
-                // Add click handler - uses responsive resource viewer
+                // Add click handler - uses responsive resource viewer or new tab
                 label.addEventListener('click', (e) => {
                     e.preventDefault();
                     const url = resource.word.searchUrl(content);
-                    const title = `ASL Sign: ${content.toUpperCase()}`;
-                    openResource(url, title);
+
+                    // YouTube opens in new tab, other resources use panel/modal
+                    if (resource.word.openInNewTab) {
+                        window.open(url, '_blank');
+                    } else {
+                        const title = `ASL Sign: ${content.toUpperCase()}`;
+                        openResource(url, title);
+                    }
                 });
 
                 card.appendChild(wordDiv);
