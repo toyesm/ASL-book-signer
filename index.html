@@ -210,6 +210,92 @@
             margin-bottom: 5px;
         }
 
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80vh;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.3);
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        .bottom-sheet-header {
+            padding: 20px;
+            border-bottom: 2px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .bottom-sheet-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .close-btn {
+            background: white;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #667eea;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .bottom-sheet-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bottom-sheet-content iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .bottom-sheet-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 999;
+        }
+
+        .bottom-sheet-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -242,8 +328,8 @@
         </div>
 
         <div class="mode-selector">
-            <button id="fingerspellBtn" class="active">Fingerspelling</button>
-            <button id="wordSignBtn">Word Signs</button>
+            <button id="fingerspellBtn">Fingerspelling</button>
+            <button id="wordSignBtn" class="active">Word Signs</button>
         </div>
 
         <div class="resource-selector">
@@ -253,11 +339,11 @@
                 <option value="signingsavvy">Signing Savvy - Video demonstrations</option>
                 <option value="handspeak">Handspeak - ASL Dictionary</option>
                 <option value="aslpro">ASL Pro - Video signs</option>
-                <option value="signasl">SignASL - Images</option>
+                <option value="signasl" selected>SignASL - Images</option>
                 <option value="youtube">YouTube - Video search results</option>
             </select>
             <div class="resource-info" id="resourceInfo">
-                Using Lifeprint for fingerspelling and word signs
+                Using SignASL for word signs
             </div>
         </div>
 
@@ -275,6 +361,18 @@
         </div>
     </div>
 
+    <!-- Bottom Sheet Modal -->
+    <div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
+    <div class="bottom-sheet" id="bottomSheet">
+        <div class="bottom-sheet-header">
+            <h2 id="bottomSheetTitle">ASL Sign</h2>
+            <button class="close-btn" id="closeBottomSheet">&times;</button>
+        </div>
+        <div class="bottom-sheet-content">
+            <iframe id="bottomSheetFrame" src="" title="ASL Resource"></iframe>
+        </div>
+    </div>
+
     <script>
         const textInput = document.getElementById('textInput');
         const signsContainer = document.getElementById('signsContainer');
@@ -282,9 +380,14 @@
         const wordSignBtn = document.getElementById('wordSignBtn');
         const resourceSelect = document.getElementById('resourceSelect');
         const resourceInfo = document.getElementById('resourceInfo');
+        const bottomSheet = document.getElementById('bottomSheet');
+        const bottomSheetOverlay = document.getElementById('bottomSheetOverlay');
+        const bottomSheetFrame = document.getElementById('bottomSheetFrame');
+        const bottomSheetTitle = document.getElementById('bottomSheetTitle');
+        const closeBottomSheet = document.getElementById('closeBottomSheet');
 
-        let currentMode = 'fingerspell';
-        let currentResource = 'lifeprint';
+        let currentMode = 'wordsign';
+        let currentResource = 'signasl';
 
         // Resource configurations
         const resources = {
@@ -383,6 +486,27 @@
             resourceInfo.textContent = `Using ${resource.name} for ${currentMode === 'fingerspell' ? 'fingerspelling' : 'word signs'}`;
         }
 
+        // Bottom sheet modal functions
+        function openBottomSheet(url, title) {
+            bottomSheetTitle.textContent = title;
+            bottomSheetFrame.src = url;
+            bottomSheet.classList.add('active');
+            bottomSheetOverlay.classList.add('active');
+        }
+
+        function closeBottomSheetModal() {
+            bottomSheet.classList.remove('active');
+            bottomSheetOverlay.classList.remove('active');
+            // Clear iframe after animation completes
+            setTimeout(() => {
+                bottomSheetFrame.src = '';
+            }, 300);
+        }
+
+        // Event listeners for closing modal
+        closeBottomSheet.addEventListener('click', closeBottomSheetModal);
+        bottomSheetOverlay.addEventListener('click', closeBottomSheetModal);
+
         // Listen for input changes
         textInput.addEventListener('input', updateDisplay);
 
@@ -469,7 +593,15 @@
 
                 const label = document.createElement('div');
                 label.className = 'label';
-                label.innerHTML = `<a href="${resource.word.searchUrl(content)}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600;">${resource.word.displayText} →</a>`;
+                label.innerHTML = `<a href="#" style="color: #667eea; text-decoration: none; font-weight: 600;">${resource.word.displayText} →</a>`;
+
+                // Add click handler to open bottom sheet
+                label.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const url = resource.word.searchUrl(content);
+                    const title = `ASL Sign: ${content.toUpperCase()}`;
+                    openBottomSheet(url, title);
+                });
 
                 card.appendChild(wordDiv);
                 card.appendChild(label);
@@ -478,8 +610,9 @@
             return card;
         }
 
-        // Auto-focus input on load
+        // Auto-focus input on load and initialize display
         textInput.focus();
+        updateResourceInfo();
     </script>
 </body>
 </html>
