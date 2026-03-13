@@ -174,6 +174,43 @@
             margin-bottom: 5px;
         }
 
+        .sign-card.morpheme-root {
+            border-bottom: 3px solid #667eea;
+        }
+
+        .sign-card.morpheme-prefix {
+            border-bottom: 3px solid #e67e22;
+            background: #fef9f3;
+        }
+
+        .sign-card.morpheme-suffix {
+            border-bottom: 3px solid #27ae60;
+            background: #f3fef6;
+        }
+
+        .morpheme-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .morpheme-label.prefix { color: #e67e22; }
+        .morpheme-label.suffix { color: #27ae60; }
+        .morpheme-label.root   { color: #667eea; }
+
+        .word-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            padding: 10px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 10px;
+            width: 100%;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -200,6 +237,7 @@
             <ul>
                 <li><strong>Fingerspelling mode:</strong> Shows individual letter signs for spelling words</li>
                 <li><strong>Word signs mode:</strong> Shows common ASL word signs (when available)</li>
+                <li><strong>Signed Exact English mode:</strong> Signs every word in English order, breaking words into root + affixes (e.g., "running" → "run" + "-ing")</li>
                 <li>Type any word or sentence and see the ASL signs appear below</li>
                 <li>Great for learning how to sign book content to your loved ones!</li>
             </ul>
@@ -208,6 +246,7 @@
         <div class="mode-selector">
             <button id="fingerspellBtn" class="active">Fingerspelling</button>
             <button id="wordSignBtn">Word Signs</button>
+            <button id="seeBtn">Signed Exact English</button>
         </div>
 
         <div class="input-section">
@@ -231,21 +270,81 @@
         const wordSignBtn = document.getElementById('wordSignBtn');
 
         let currentMode = 'fingerspell';
+        const seeBtn = document.getElementById('seeBtn');
+
+        // SEE data structures
+        const SEE_SUFFIXES = [
+            { suffix: 'fulness', label: '-fulness', desc: 'Sign: -FUL + -NESS' },
+            { suffix: 'ation', label: '-ation', desc: 'Sign: -ATION (initialized A, twist)' },
+            { suffix: 'ment', label: '-ment', desc: 'Sign: -MENT (M-hand tap)' },
+            { suffix: 'ness', label: '-ness', desc: 'Sign: -NESS (N-hand down)' },
+            { suffix: 'able', label: '-able', desc: 'Sign: -ABLE (A-hand down)' },
+            { suffix: 'ible', label: '-ible', desc: 'Sign: -IBLE (same as -ABLE)' },
+            { suffix: 'tion', label: '-tion', desc: 'Sign: -TION (T-hand twist)' },
+            { suffix: 'sion', label: '-sion', desc: 'Sign: -SION (S-hand twist)' },
+            { suffix: 'ful', label: '-ful', desc: 'Sign: -FUL (F-hand twist)' },
+            { suffix: 'less', label: '-less', desc: 'Sign: -LESS (L-hand down)' },
+            { suffix: 'ous', label: '-ous', desc: 'Sign: -OUS (O-hand twist)' },
+            { suffix: 'ive', label: '-ive', desc: 'Sign: -IVE (I-hand twist)' },
+            { suffix: 'ing', label: '-ing', desc: 'Sign: -ING (I-hand twist)' },
+            { suffix: 'est', label: '-est', desc: 'Sign: -EST (E-hand up)' },
+            { suffix: 'ity', label: '-ity', desc: 'Sign: -ITY (I-hand twist)' },
+            { suffix: 'ize', label: '-ize', desc: 'Sign: -IZE (I-hand)' },
+            { suffix: 'ise', label: '-ise', desc: 'Sign: -ISE (same as -IZE)' },
+            { suffix: 'ly', label: '-ly', desc: 'Sign: -LY (L-hand twist)' },
+            { suffix: 'er', label: '-er', desc: 'Sign: -ER (E-hand down)' },
+            { suffix: 'or', label: '-or', desc: 'Sign: -OR (same as -ER)' },
+            { suffix: 'ed', label: '-ed', desc: 'Sign: -ED (E-hand twist)' },
+            { suffix: 'en', label: '-en', desc: 'Sign: -EN' },
+            { suffix: 'al', label: '-al', desc: 'Sign: -AL (A-hand)' },
+            { suffix: 'es', label: '-es', desc: 'Sign: -S (S-hand twist)' },
+            { suffix: 's', label: '-s', desc: 'Sign: -S (S-hand twist)' },
+        ];
+
+        const SEE_PREFIXES = [
+            { prefix: 'inter', label: 'inter-', desc: 'Sign: INTER- (I-hand weave)' },
+            { prefix: 'trans', label: 'trans-', desc: 'Sign: TRANS- (T-hand across)' },
+            { prefix: 'over', label: 'over-', desc: 'Sign: OVER- (palm over)' },
+            { prefix: 'under', label: 'under-', desc: 'Sign: UNDER- (palm under)' },
+            { prefix: 'mis', label: 'mis-', desc: 'Sign: MIS- (M-hand twist)' },
+            { prefix: 'dis', label: 'dis-', desc: 'Sign: DIS- (D-hand away)' },
+            { prefix: 'pre', label: 'pre-', desc: 'Sign: PRE- (P-hand back)' },
+            { prefix: 'non', label: 'non-', desc: 'Sign: NON- (N-hand cross)' },
+            { prefix: 'un', label: 'un-', desc: 'Sign: UN- (U-hand twist)' },
+            { prefix: 're', label: 're-', desc: 'Sign: RE- (R-hand back)' },
+        ];
+
+        const SEE_NO_DECOMPOSE = new Set([
+            'the', 'a', 'an', 'is', 'am', 'are', 'was', 'were', 'be', 'been',
+            'being', 'has', 'have', 'had', 'do', 'does', 'did', 'will', 'shall',
+            'would', 'should', 'could', 'may', 'might', 'must', 'can', 'to',
+            'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into',
+            'this', 'that', 'these', 'those', 'it', 'its', 'his', 'her', 'he',
+            'she', 'we', 'they', 'me', 'him', 'us', 'them', 'my', 'your', 'our',
+            'their', 'and', 'but', 'or', 'not', 'no', 'yes', 'if', 'then',
+            'red', 'bed', 'led', 'fed', 'wed', 'shed', 'sled', 'over', 'under',
+            'ever', 'never', 'after', 'water', 'other', 'mother', 'father',
+            'sister', 'brother', 'later', 'butter', 'letter', 'better',
+            'dinner', 'inner', 'enter', 'winter', 'silver', 'river', 'finger',
+            'singer', 'anger', 'danger', 'stranger', 'ginger', 'per', 'her',
+            'member', 'number', 'under', 'wonder', 'render', 'tender',
+        ]);
 
         // Mode selection
-        fingerspellBtn.addEventListener('click', () => {
-            currentMode = 'fingerspell';
-            fingerspellBtn.classList.add('active');
-            wordSignBtn.classList.remove('active');
-            updateDisplay();
-        });
-
-        wordSignBtn.addEventListener('click', () => {
-            currentMode = 'wordsign';
+        function setMode(mode) {
+            currentMode = mode;
             fingerspellBtn.classList.remove('active');
-            wordSignBtn.classList.add('active');
+            wordSignBtn.classList.remove('active');
+            seeBtn.classList.remove('active');
+            if (mode === 'fingerspell') fingerspellBtn.classList.add('active');
+            else if (mode === 'wordsign') wordSignBtn.classList.add('active');
+            else if (mode === 'see') seeBtn.classList.add('active');
             updateDisplay();
-        });
+        }
+
+        fingerspellBtn.addEventListener('click', () => setMode('fingerspell'));
+        wordSignBtn.addEventListener('click', () => setMode('wordsign'));
+        seeBtn.addEventListener('click', () => setMode('see'));
 
         // Listen for input changes
         textInput.addEventListener('input', updateDisplay);
@@ -260,8 +359,10 @@
 
             if (currentMode === 'fingerspell') {
                 displayFingerspelling(text);
-            } else {
+            } else if (currentMode === 'wordsign') {
                 displayWordSigns(text);
+            } else if (currentMode === 'see') {
+                displaySEE(text);
             }
         }
 
@@ -301,7 +402,92 @@
             });
         }
 
-        function createSignCard(content, type) {
+        function decomposeWord(word) {
+            if (word.length <= 3 || SEE_NO_DECOMPOSE.has(word)) {
+                return [{ text: word, type: 'root' }];
+            }
+
+            const morphemes = [];
+            let remaining = word;
+
+            // Strip at most one prefix
+            for (const p of SEE_PREFIXES) {
+                if (remaining.startsWith(p.prefix) && remaining.length > p.prefix.length + 2) {
+                    morphemes.push({ text: p.label, type: 'prefix', desc: p.desc });
+                    remaining = remaining.slice(p.prefix.length);
+                    break;
+                }
+            }
+
+            // Strip at most one suffix
+            let suffixMorpheme = null;
+            for (const s of SEE_SUFFIXES) {
+                if (remaining.endsWith(s.suffix) && remaining.length > s.suffix.length + 2) {
+                    suffixMorpheme = { text: s.label, type: 'suffix', desc: s.desc };
+                    remaining = remaining.slice(0, remaining.length - s.suffix.length);
+
+                    // Handle consonant doubling: "running" → "runn" → "run"
+                    if (remaining.length >= 2 && remaining[remaining.length - 1] === remaining[remaining.length - 2]) {
+                        remaining = remaining.slice(0, -1);
+                    }
+
+                    // Handle y/i alternation: "happiness" → "happi" → "happy"
+                    if (remaining.endsWith('i')) {
+                        remaining = remaining.slice(0, -1) + 'y';
+                    }
+
+                    // Handle silent-e restoration: "making" → "mak" → "make"
+                    if (['ing', 'ed', 'er', 'est', 'able', 'ible', 'ive', 'ous'].includes(s.suffix)) {
+                        const lastChar = remaining[remaining.length - 1];
+                        if (lastChar && /[bcdfghjklmnpqrstvwxyz]/.test(lastChar) &&
+                            !remaining.endsWith('ck') && !remaining.endsWith('ll')) {
+                            remaining = remaining + 'e';
+                        }
+                    }
+                    break;
+                }
+            }
+
+            // Add root
+            morphemes.push({ text: remaining, type: 'root' });
+
+            // Add suffix after root
+            if (suffixMorpheme) {
+                morphemes.push(suffixMorpheme);
+            }
+
+            return morphemes;
+        }
+
+        function displaySEE(text) {
+            signsContainer.innerHTML = '';
+            const words = text.split(/\s+/);
+
+            words.forEach((word, wordIndex) => {
+                const cleanWord = word.toLowerCase().replace(/[^a-z]/g, '');
+                if (!cleanWord) return;
+
+                const morphemes = decomposeWord(cleanWord);
+
+                const wordGroup = document.createElement('div');
+                wordGroup.className = 'word-group';
+
+                morphemes.forEach(morpheme => {
+                    const card = createSignCard(morpheme.text, 'morpheme', morpheme);
+                    wordGroup.appendChild(card);
+                });
+
+                signsContainer.appendChild(wordGroup);
+
+                if (wordIndex < words.length - 1) {
+                    const separator = document.createElement('div');
+                    separator.className = 'word-separator';
+                    signsContainer.appendChild(separator);
+                }
+            });
+        }
+
+        function createSignCard(content, type, morphemeData) {
             const card = document.createElement('div');
             card.className = 'sign-card';
 
@@ -346,6 +532,36 @@
 
                 card.appendChild(wordDiv);
                 card.appendChild(label);
+            } else if (type === 'morpheme') {
+                const typeLabel = document.createElement('div');
+                typeLabel.className = 'morpheme-label ' + morphemeData.type;
+                typeLabel.textContent = morphemeData.type.toUpperCase();
+                card.appendChild(typeLabel);
+
+                const wordDiv = document.createElement('div');
+                wordDiv.className = 'letter';
+                wordDiv.textContent = content.toUpperCase();
+                card.appendChild(wordDiv);
+
+                card.classList.add('morpheme-' + morphemeData.type);
+
+                if (morphemeData.type === 'root') {
+                    const label = document.createElement('div');
+                    label.className = 'label';
+                    label.innerHTML = `<a href="https://www.signingsavvy.com/search/${encodeURIComponent(content)}" target="_blank" style="color: #667eea; text-decoration: none;">View sign →</a>`;
+                    card.appendChild(label);
+                } else {
+                    const desc = document.createElement('div');
+                    desc.className = 'label';
+                    desc.textContent = morphemeData.desc;
+                    card.appendChild(desc);
+
+                    const label = document.createElement('div');
+                    label.className = 'label';
+                    const searchTerm = content.replace(/^-|-$/g, '');
+                    label.innerHTML = `<a href="https://www.signingsavvy.com/search/${encodeURIComponent(searchTerm)}" target="_blank" style="color: #667eea; text-decoration: none;">View sign →</a>`;
+                    card.appendChild(label);
+                }
             }
 
             return card;
